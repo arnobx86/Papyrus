@@ -8,6 +8,9 @@ class AppConfig {
   /// Sentry DSN (Data Source Name)
   static String get sentryDsn => dotenv.get('SENTRY_DSN', fallback: '');
   
+  /// Website URL for update checks
+  static String get websiteUrl => dotenv.get('APP_WEBSITE_URL', fallback: 'http://localhost:3000');
+
   /// Environment flag
   static const bool isProduction = bool.fromEnvironment('dart.vm.product');
 

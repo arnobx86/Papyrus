@@ -51,6 +51,8 @@ dependencies:
   path_provider: ^2.1.5
   sentry_flutter: ^8.14.2
   flutter_dotenv: ^6.0.0
+  http: ^1.6.0
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

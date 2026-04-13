@@ -7,6 +7,7 @@ import '../../core/shop_provider.dart';
 import '../../core/auth_provider.dart';
 import '../../core/permissions.dart';
 import '../../core/data_refresh_notifier.dart';
+import '../../core/version_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,6 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _setupRealtime();
     // Listen for data changes from other screens
     context.read<DataRefreshNotifier>().addListener(_onDataRefresh);
+    
+    // Check for updates from the Papyrus website API
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      VersionService.checkForUpdates(context);
+    });
   }
 
   void _onDataRefresh() {
