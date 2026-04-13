@@ -1,0 +1,79 @@
+Launching lib\main.dart on Windows in debug mode...
+Building Windows application...                                   144.5s
+√ Built build\windows\x64\runner\Debug\papyrus.exe
+supabase.supabase_flutter: INFO: ***** Supabase init completed ***** 
+Syncing files to device Windows...                                  4.4s
+
+Flutter run key commands.
+r Hot reload. 
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on Windows is available at: http://127.0.0.1:56361/DfQdo52P-q8=/
+The Flutter DevTools debugger and profiler on Windows is available at: http://127.0.0.1:56361/DfQdo52P-q8=/devtools/?uri=ws://127.0.0.1:56361/DfQdo52P-q8=/ws
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+ProductsScreen: Setting up real-time subscription for shop fcf2518a-2811-404c-a214-be75792e19f1
+ProductsScreen: Subscription status: RealtimeSubscribeStatus.subscribed
+ProductsScreen: Subscription status: RealtimeSubscribeStatus.closed
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+ProductsScreen: Setting up real-time subscription for shop fcf2518a-2811-404c-a214-be75792e19f1
+ProductsScreen: Subscription status: RealtimeSubscribeStatus.subscribed
+ProductsScreen: Subscription status: RealtimeSubscribeStatus.closed
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+ProductsScreen: Setting up real-time subscription for shop fcf2518a-2811-404c-a214-be75792e19f1
+ProductsScreen: Subscription status: RealtimeSubscribeStatus.subscribed
+ProductsScreen: Subscription status: RealtimeSubscribeStatus.closed
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Fetching dashboard data for shop fcf2518a-2811-404c-a214-be75792e19f1
+KenaBecaScreen: Error fetching dashboard data: PostgrestException(message: Could not find the table 'public.returns' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.transactions')
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (total) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (monthly) - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: Before filtering - purchases: 0, sales: 0, returns: 0
+KenaBecaScreen: After filtering (today) - purchases: 0, sales: 0, returns: 0
+Error fetching categories: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error fetching categories: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Error adding category: PostgrestException(message: Could not find the table 'public.categories' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.parties')
+Lost connection to device.
