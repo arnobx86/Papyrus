@@ -48,6 +48,7 @@ import 'screens/shop/terms_service_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.init();
 
   final dsn = AppConfig.sentryDsn;
   final isDsnValid = dsn.isNotEmpty && dsn != 'REPLACE_WITH_YOUR_SENTRY_DSN';
