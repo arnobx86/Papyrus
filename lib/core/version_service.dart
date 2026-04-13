@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,7 +13,22 @@ class VersionService {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
       
-      final response = await http.get(Uri.parse('${AppConfig.websiteUrl}/api/update-check'));
+      // Get Architecture
+      String arch = 'universal';
+      if (Platform.isAndroid) {
+        final deviceInfo = await DeviceInfoPlugin().androidInfo;
+        final abi = deviceInfo.supportedAbis.isNotEmpty ? deviceInfo.supportedAbis[0] : '';
+        
+        if (abi.contains('arm64')) {
+          arch = 'arm64';
+        } else if (abi.contains('armeabi')) {
+          arch = 'arm';
+        } else if (abi.contains('x86')) {
+          arch = 'x86';
+        }
+      }
+      
+      final response = await http.get(Uri.parse('${AppConfig.websiteUrl}/api/update-check?arch=$arch'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
