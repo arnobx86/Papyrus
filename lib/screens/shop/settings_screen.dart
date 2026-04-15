@@ -70,6 +70,13 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 _buildItem(
                   context,
+                  icon: LucideIcons.bug,
+                  label: 'Test Sentry Crash',
+                  color: Colors.deepPurple,
+                  onTap: () => throw Exception('Papyrus Sentry Test Crash!'),
+                ),
+                _buildItem(
+                  context,
                   icon: LucideIcons.logOut,
                   label: 'Log Out',
                   color: Colors.grey,
@@ -91,7 +98,7 @@ class SettingsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            'Version: 1.0.5',
+            'Version: 1.0.7',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
