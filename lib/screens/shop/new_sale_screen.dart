@@ -865,7 +865,13 @@ class _SelectionModalState extends State<_SelectionModal> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.items.where((i) => i['name'].toString().toLowerCase().contains(_query.toLowerCase())).toList();
+    final filtered = widget.items.where((i) {
+      final query = _query.toLowerCase();
+      final name = i['name'].toString().toLowerCase();
+      final sku = (i['sku'] ?? '').toString().toLowerCase();
+      return name.contains(query) || sku.contains(query);
+    }).toList();
+    
     return Container(
       height: MediaQuery.of(context).size.height * 0.8,
       padding: const EdgeInsets.all(16),
@@ -884,7 +890,7 @@ class _SelectionModalState extends State<_SelectionModal> {
               Expanded(
                 child: TextField(
                   onChanged: (v) => setState(() => _query = v),
-                  decoration: const InputDecoration(hintText: 'Search...', prefixIcon: Icon(LucideIcons.search)),
+                  decoration: const InputDecoration(hintText: 'Search by Name or SKU...', prefixIcon: Icon(LucideIcons.search)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -897,10 +903,20 @@ class _SelectionModalState extends State<_SelectionModal> {
               itemCount: filtered.length,
               itemBuilder: (context, index) {
                 final item = filtered[index];
+                final sku = item['sku']?.toString();
                 return ListTile(
                   title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: widget.isProduct ? Text('Stock: ${item['stock']} ${item['unit']}') : (item['phone'] != null ? Text(item['phone']) : null),
-                  trailing: widget.isProduct ? Text('৳${(item['purchase_price'] ?? item['cost_price']) ?? 0}') : null,
+                  subtitle: widget.isProduct 
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (sku != null && sku.isNotEmpty)
+                            Text('SKU: $sku', style: const TextStyle(fontSize: 11, color: Colors.blue)),
+                          Text('Stock: ${item['stock']} ${item['unit']}'),
+                        ],
+                      )
+                    : (item['phone'] != null ? Text(item['phone']) : null),
+                  trailing: widget.isProduct ? Text('৳${(item['sale_price'] ?? item['cost_price']) ?? 0}') : null,
                   onTap: () => widget.onSelect(item),
                 );
               },
