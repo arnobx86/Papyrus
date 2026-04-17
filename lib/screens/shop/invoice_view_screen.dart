@@ -45,15 +45,32 @@ class _InvoiceViewScreenState extends State<InvoiceViewScreen> {
       final itemsResponse = await supabase.from(itemsTable).select().eq(fk, widget.id);
       final items = itemsResponse as List;
 
-      final user = supabase.auth.currentUser;
-      String invoicedBy = user?.email ?? 'Unknown';
-      if (user != null) {
+      final creatorId = transaction['user_id'] ?? transaction['created_by'];
+      String invoicedBy = 'Unknown';
+
+      if (creatorId != null) {
         try {
-          final profile = await supabase.from('profiles').select('username, full_name').eq('id', user.id).maybeSingle();
+          final profile = await supabase.from('profiles').select('username, full_name, email').eq('id', creatorId).maybeSingle();
           if (profile != null) {
-            invoicedBy = profile['username'] ?? profile['full_name'] ?? user.email ?? 'Unknown';
+            invoicedBy = profile['username'] ?? profile['full_name'] ?? profile['email'] ?? 'Unknown';
           }
         } catch (_) {}
+      }
+
+      if (invoicedBy == 'Unknown') {
+        final user = supabase.auth.currentUser;
+        if (user != null) {
+          try {
+            final profile = await supabase.from('profiles').select('username, full_name').eq('id', user.id).maybeSingle();
+            if (profile != null) {
+              invoicedBy = profile['username'] ?? profile['full_name'] ?? user.email ?? 'Unknown';
+            } else {
+              invoicedBy = user.email ?? 'Unknown';
+            }
+          } catch (_) {
+            invoicedBy = user.email ?? 'Unknown';
+          }
+        }
       }
 
       setState(() {

@@ -7,6 +7,7 @@ import 'app_config.dart';
 import 'version_service.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class VersionService {
   static Future<void> checkForUpdates(BuildContext context, {bool showNoUpdateMsg = false}) async {
@@ -46,7 +47,25 @@ class VersionService {
 
         if (latestVersion.isNotEmpty && _isVersionNewer(currentVersion, latestVersion)) {
           debugPrint('Update available! Current: $currentVersion, Latest: $latestVersion');
-          if (context.mounted) {
+
+          bool shouldShow = true;
+          if (updateType != 'force' && !showNoUpdateMsg) {
+            final prefs = await SharedPreferences.getInstance();
+            final lastShownStr = prefs.getString('last_update_popup_time');
+            if (lastShownStr != null) {
+              final lastShown = DateTime.parse(lastShownStr);
+              if (DateTime.now().difference(lastShown).inHours < 24) {
+                shouldShow = false;
+                debugPrint('Snoozing update popup (already shown today).');
+              }
+            }
+          }
+
+          if (shouldShow && context.mounted) {
+            if (updateType != 'force' && !showNoUpdateMsg) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('last_update_popup_time', DateTime.now().toIso8601String());
+            }
             _showUpdateDialog(context, latestVersion, downloadUrl ?? '', updateType == 'force', releaseNotes);
           }
         } else {
