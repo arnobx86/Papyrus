@@ -30,6 +30,8 @@ class _KenaBecaScreenState extends State<KenaBecaScreen> {
   RealtimeChannel? _salesChannel;
   RealtimeChannel? _returnsChannel;
 
+  late DataRefreshNotifier _refreshNotifier;
+
   @override
   void initState() {
     super.initState();
@@ -38,19 +40,19 @@ class _KenaBecaScreenState extends State<KenaBecaScreen> {
       _setupRealtimeSubscriptions();
     });
     // Listen for data changes from other screens
-    context.read<DataRefreshNotifier>().addListener(_onDataRefresh);
+    _refreshNotifier = context.read<DataRefreshNotifier>();
+    _refreshNotifier.addListener(_onDataRefresh);
   }
 
   void _onDataRefresh() {
-    final notifier = context.read<DataRefreshNotifier>();
-    if (notifier.shouldRefreshAny({DataChannel.sales, DataChannel.purchases, DataChannel.products, DataChannel.returns})) {
+    if (_refreshNotifier.shouldRefreshAny({DataChannel.sales, DataChannel.purchases, DataChannel.products, DataChannel.returns})) {
       _fetchDashboardData();
     }
   }
 
   @override
   void dispose() {
-    context.read<DataRefreshNotifier>().removeListener(_onDataRefresh);
+    _refreshNotifier.removeListener(_onDataRefresh);
     _purchasesChannel?.unsubscribe();
     _salesChannel?.unsubscribe();
     _returnsChannel?.unsubscribe();

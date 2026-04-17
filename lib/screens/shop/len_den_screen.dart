@@ -22,24 +22,26 @@ class _LenDenScreenState extends State<LenDenScreen> {
   RealtimeChannel? _partiesChannel;
   RealtimeChannel? _ledgerChannel;
 
+  late DataRefreshNotifier _refreshNotifier;
+
   @override
   void initState() {
     super.initState();
     _fetchData();
     _setupRealtime();
-    context.read<DataRefreshNotifier>().addListener(_onDataRefresh);
+    _refreshNotifier = context.read<DataRefreshNotifier>();
+    _refreshNotifier.addListener(_onDataRefresh);
   }
 
   void _onDataRefresh() {
-    final notifier = context.read<DataRefreshNotifier>();
-    if (notifier.shouldRefreshAny({DataChannel.ledger, DataChannel.parties, DataChannel.transactions, DataChannel.sales, DataChannel.purchases})) {
+    if (_refreshNotifier.shouldRefreshAny({DataChannel.ledger, DataChannel.parties, DataChannel.transactions, DataChannel.sales, DataChannel.purchases})) {
       _fetchData();
     }
   }
 
   @override
   void dispose() {
-    context.read<DataRefreshNotifier>().removeListener(_onDataRefresh);
+    _refreshNotifier.removeListener(_onDataRefresh);
     _partiesChannel?.unsubscribe();
     _ledgerChannel?.unsubscribe();
     super.dispose();

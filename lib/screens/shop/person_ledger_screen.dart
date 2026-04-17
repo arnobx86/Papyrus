@@ -24,24 +24,26 @@ class _PersonLedgerScreenState extends State<PersonLedgerScreen> {
   RealtimeChannel? _ledgerChannel;
   List<dynamic> _wallets = [];
 
+  late DataRefreshNotifier _refreshNotifier;
+
   @override
   void initState() {
     super.initState();
     _fetchLedger();
     _setupRealtime();
-    context.read<DataRefreshNotifier>().addListener(_onDataRefresh);
+    _refreshNotifier = context.read<DataRefreshNotifier>();
+    _refreshNotifier.addListener(_onDataRefresh);
   }
 
   void _onDataRefresh() {
-    final notifier = context.read<DataRefreshNotifier>();
-    if (notifier.shouldRefreshAny({DataChannel.ledger, DataChannel.transactions, DataChannel.wallets})) {
+    if (_refreshNotifier.shouldRefreshAny({DataChannel.ledger, DataChannel.transactions, DataChannel.wallets})) {
       _fetchLedger();
     }
   }
 
   @override
   void dispose() {
-    context.read<DataRefreshNotifier>().removeListener(_onDataRefresh);
+    _refreshNotifier.removeListener(_onDataRefresh);
     _ledgerChannel?.unsubscribe();
     super.dispose();
   }
