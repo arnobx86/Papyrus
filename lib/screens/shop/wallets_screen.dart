@@ -193,6 +193,25 @@ class _WalletsScreenState extends State<WalletsScreen> {
     }
   }
 
+  Future<void> _toggleDefaultWallet(String id) async {
+    final shopId = context.read<ShopProvider>().currentShop?.id;
+    if (shopId == null) return;
+
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // 1. Unset any existing default wallet for this shop
+      await supabase.from('wallets').update({'is_default': false}).eq('shop_id', shopId);
+      
+      // 2. Set this wallet as default
+      await supabase.from('wallets').update({'is_default': true}).eq('id', id);
+      
+      await _fetchWallets();
+    } catch (e) {
+      debugPrint('Error setting default wallet: $e');
+    }
+  }
+
   void _showAddDialog() {
     _nameController.clear();
     _balanceController.clear();
@@ -369,9 +388,23 @@ class _WalletsScreenState extends State<WalletsScreen> {
                               fontWeight: isNegative ? FontWeight.bold : null,
                             ),
                           ),
-                          trailing: IconButton(
-                            icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.grey),
-                            onPressed: () => _deleteWallet(wallet['id']),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  wallet['is_default'] == true ? LucideIcons.star : LucideIcons.star,
+                                  size: 18,
+                                  color: wallet['is_default'] == true ? Colors.amber : Colors.grey[300],
+                                ),
+                                onPressed: () => _toggleDefaultWallet(wallet['id']),
+                                tooltip: 'Set as default',
+                              ),
+                              IconButton(
+                                icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.grey),
+                                onPressed: () => _deleteWallet(wallet['id']),
+                              ),
+                            ],
                           ),
                         ),
                       );

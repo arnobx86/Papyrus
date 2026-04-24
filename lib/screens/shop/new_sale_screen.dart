@@ -176,7 +176,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           _customers = results[0] as List;
           _products = results[1] as List;
           _wallets = results[2] as List;
-          if (_wallets.isNotEmpty) _selectedWalletId = _wallets[0]['id'];
+          if (_wallets.isNotEmpty) {
+            final defaultFound = _wallets.where((w) => w['is_default'] == true || w['is_default'].toString() == 'true');
+            final defaultWallet = defaultFound.isNotEmpty ? defaultFound.first : _wallets[0];
+            _selectedWalletId = defaultWallet['id'];
+          }
           
           // Generate next invoice number for sales using settings if available
           final latestSales = results[3] as List;
@@ -374,10 +378,12 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           'type': 'income',
           'amount': _paidAmount,
           'category': 'Sale',
+          'party_name': _customerName,
           'note': 'Sale Payment for Invoice ${_invoiceController.text}',
           'reference_id': sale['id'],
           'reference_type': 'sale',
           'created_at': _dateController.text,
+          'transaction_date': _dateController.text,
         });
       }
 

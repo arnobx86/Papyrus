@@ -52,7 +52,11 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       final supabase = Supabase.instance.client;
       final response = await supabase.from('wallets').select().eq('shop_id', shopId);
       setState(() => _wallets = response as List);
-      if (_wallets.isNotEmpty) _selectedWalletId = _wallets[0]['id'];
+      if (_wallets.isNotEmpty) {
+        final defaultFound = _wallets.where((w) => w['is_default'] == true || w['is_default'].toString() == 'true');
+        final defaultWallet = defaultFound.isNotEmpty ? defaultFound.first : _wallets[0];
+        _selectedWalletId = defaultWallet['id'];
+      }
     } catch (e) {
       debugPrint('Error fetching wallets: $e');
     }

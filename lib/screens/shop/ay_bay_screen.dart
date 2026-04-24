@@ -527,8 +527,8 @@ class _AyBayScreenState extends State<AyBayScreen> {
       final supabase = Supabase.instance.client;
 
       final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
-      final monthStart = DateTime(now.year, now.month, 1).toIso8601String();
+      final today = DateFormat('yyyy-MM-dd').format(now);
+      final monthStart = DateFormat('yyyy-MM-01').format(now);
 
       // Fetch transactions based on active tab
       var query = supabase
@@ -537,9 +537,11 @@ class _AyBayScreenState extends State<AyBayScreen> {
           .eq('shop_id', shopId);
 
       if (_activeTab == 'today') {
-        query = query.gte('created_at', todayStart);
+        query = query.eq('transaction_date', today);
       } else if (_activeTab == 'monthly') {
-        query = query.gte('created_at', monthStart);
+        final lastDay = DateTime(now.year, now.month + 1, 0);
+        final monthEnd = DateFormat('yyyy-MM-dd').format(lastDay);
+        query = query.gte('transaction_date', monthStart).lte('transaction_date', monthEnd);
       }
 
       final txResponse = await query.order('created_at', ascending: false);

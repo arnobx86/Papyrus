@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:typed_data';
 import '../../core/shop_provider.dart';
 
 class DailyReportScreen extends StatefulWidget {
@@ -24,17 +28,12 @@ class _DailyReportScreenState extends State<DailyReportScreen> {
   }
 
   // Data
-  double _totalSales = 0;
-  int _salesCount = 0;
-  double _totalPurchases = 0;
-  double _totalPayment = 0;
-  double _totalReceived = 0;
+  double _openingBalance = 0;
+  double _closingBalance = 0;
   double _totalIncome = 0;
   double _totalExpense = 0;
-  List<Map<String, dynamic>> _transactions = [];
-
-  // Cumulative Balance (Rewound to end of selected day)
-  double _finalWalletBalance = 0;
+  List<Map<String, dynamic>> _incomeTransactions = [];
+  List<Map<String, dynamic>> _expenseTransactions = [];
 
   @override
   void initState() {
@@ -52,83 +51,84 @@ class _DailyReportScreenState extends State<DailyReportScreen> {
       final supabase = Supabase.instance.client;
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-      // 1. Fetch Sales (for today's summary)
-      final salesResponse = await supabase
-          .from('sales')
-          .select('total_amount')
-          .eq('shop_id', shopId)
-          .eq('created_at', dateStr);
-      
-      // 2. Fetch Purchases (for today's summary)
-      final purchasesResponse = await supabase
-          .from('purchases')
-          .select('total_amount')
-          .eq('shop_id', shopId)
-          .eq('created_at', dateStr);
-
-      // 3. Fetch Transactions for the selected date (for today's breakdown)
+      // 1. Fetch Transactions for the selected date
       final txResponse = await supabase
           .from('transactions')
           .select()
           .eq('shop_id', shopId)
           .eq('transaction_date', dateStr);
 
-      // 4. Fetch CURRENT Wallets to get ground truth balance
+      // 2. Fetch CURRENT Wallets to get ground truth balance
       final walletsResponse = await supabase
           .from('wallets')
           .select('balance')
           .eq('shop_id', shopId);
 
-      // 5. Fetch Sum of Net Transactions AFTER the selected date to "rewind" balance
-      // We look for transactions where transaction_date > selectedDate
+      // 3. Fetch all transactions AFTER selected date (to rewind to closing balance)
       final futureTxResponse = await supabase
           .from('transactions')
           .select('type, amount')
           .eq('shop_id', shopId)
           .gt('transaction_date', dateStr);
 
-      final sales = salesResponse as List;
-      final purchases = purchasesResponse as List;
+      // 4. Fetch all transactions ON or AFTER selected date (to rewind to opening balance)
+      final todayAndFutureTxResponse = await supabase
+          .from('transactions')
+          .select('type, amount')
+          .eq('shop_id', shopId)
+          .gte('transaction_date', dateStr);
+
       final txList = (txResponse as List).cast<Map<String, dynamic>>();
       final wallets = walletsResponse as List;
       final futureTxList = (futureTxResponse as List).cast<Map<String, dynamic>>();
+      final todayAndFutureTxList = (todayAndFutureTxResponse as List).cast<Map<String, dynamic>>();
 
       // Current total balance
       final currentTotalBalance = wallets.fold(0.0, (s, w) => s + (double.tryParse(w['balance'].toString()) ?? 0));
 
-      // Net change after selected date
+      // Net change after selected date (to find Closing Balance)
       final futureNetChange = futureTxList.fold(0.0, (s, t) {
         final amt = double.tryParse(t['amount'].toString()) ?? 0;
         final type = t['type'] as String;
-        final isPositive = ['income', 'received', 'sale'].contains(type);
+        final refType = t['reference_type'] as String?;
+        final isPositive = ['income', 'received', 'sale'].contains(type) || refType == 'sale';
+        return s + (isPositive ? amt : -amt);
+      });
+
+      // Net change on or after selected date (to find Opening Balance)
+      final todayAndFutureNetChange = todayAndFutureTxList.fold(0.0, (s, t) {
+        final amt = double.tryParse(t['amount'].toString()) ?? 0;
+        final type = t['type'] as String;
+        final refType = t['reference_type'] as String?;
+        final isPositive = ['income', 'received', 'sale'].contains(type) || refType == 'sale';
         return s + (isPositive ? amt : -amt);
       });
 
       setState(() {
-        _totalSales = sales.fold(0.0, (s, i) => s + (double.tryParse(i['total_amount'].toString()) ?? 0));
-        _salesCount = sales.length;
-        _totalPurchases = purchases.fold(0.0, (s, i) => s + (double.tryParse(i['total_amount'].toString()) ?? 0));
+        _incomeTransactions = txList.where((t) {
+          final type = t['type'] as String;
+          final refType = t['reference_type'] as String?;
+          return ['income', 'received', 'sale'].contains(type) || refType == 'sale';
+        }).toList();
         
-        _totalPayment = txList.where((t) => t['type'] == 'payment').fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
-        _totalReceived = txList.where((t) => t['type'] == 'received').fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
-        _totalIncome = txList.where((t) => t['type'] == 'income').fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
-        _totalExpense = txList.where((t) => t['type'] == 'expense').fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
+        _expenseTransactions = txList.where((t) {
+          final type = t['type'] as String;
+          final refType = t['reference_type'] as String?;
+          return ['expense', 'payment', 'purchase'].contains(type) || refType == 'purchase';
+        }).toList();
         
-        _transactions = txList;
-        _finalWalletBalance = currentTotalBalance - futureNetChange;
+        _totalIncome = _incomeTransactions.fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
+        _totalExpense = _expenseTransactions.fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
+        
+        _closingBalance = currentTotalBalance - futureNetChange;
+        _openingBalance = currentTotalBalance - todayAndFutureNetChange;
+        
         _isLoading = false;
       });
     } catch (e) {
       debugPrint('Error fetching report data: $e');
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  double get _netToday {
-    // Net cash flow of JUST this day
-    final moneyIn = _transactions.where((t) => ['income', 'received', 'sale'].contains(t['type'])).fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
-    final moneyOut = _transactions.where((t) => ['expense', 'payment', 'purchase'].contains(t['type'])).fold(0.0, (s, t) => s + (double.tryParse(t['amount'].toString()) ?? 0));
-    return moneyIn - moneyOut;
   }
 
   Future<void> _selectDate() async {
@@ -144,15 +144,246 @@ class _DailyReportScreenState extends State<DailyReportScreen> {
     }
   }
 
+  Future<Uint8List> _generatePdf() async {
+    final shop = context.read<ShopProvider>().currentShop;
+    final curr = shop?.metadata?['currency'] ?? '৳';
+    final dateStr = DateFormat('dd MMM, yyyy').format(_selectedDate);
+
+    final regularFont = await PdfGoogleFonts.notoSansBengaliRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBengaliBold();
+
+    final pdf = pw.Document(theme: pw.ThemeData.withFont(base: regularFont, bold: boldFont));
+
+    pdf.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      build: (pw.Context ctx) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // Header
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(shop?.name ?? 'Papyrus', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#154834'))),
+                    if (shop?.address != null) pw.Text(shop!.address!, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                    if (shop?.phone != null) pw.Text('Phone: ${shop!.phone}', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('DAILY REPORT', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#154834'))),
+                    pw.Text('Date: $dateStr', style: const pw.TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Divider(color: PdfColors.grey300),
+            pw.SizedBox(height: 10),
+
+            // Opening Balance
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.grey100,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Opening Balance', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        pw.Text('$curr ${_formatCurrency(_openingBalance)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.Expanded(child: pw.SizedBox()), // Spacer to match Closing Balance layout
+              ],
+            ),
+            pw.SizedBox(height: 20),
+
+            // Main Columns
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Income Column
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+                        decoration: pw.BoxDecoration(color: PdfColor.fromHex('#2e7d32')),
+                        child: pw.Text('INCOME', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                      ),
+                      pw.Table(
+                        border: pw.TableBorder.all(color: PdfColors.grey300),
+                        children: [
+                          ..._incomeTransactions.map((t) {
+                            final type = t['type'] as String;
+                            final refType = t['reference_type'] as String?;
+                            final partyName = t['party_name'] as String?;
+                            final category = t['category'] as String?;
+                            String name = 'Transaction';
+                            if (refType == 'sale') name = 'Sale';
+                            else if (type == 'received') name = 'Recv: ${partyName ?? 'Customer'}';
+                            else if (category != null) name = category;
+
+                            return pw.TableRow(
+                              children: [
+                                pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(name, style: const pw.TextStyle(fontSize: 9))),
+                                pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text('$curr ${_formatCurrency(double.tryParse(t['amount'].toString()) ?? 0)}', style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.right)),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.all(8),
+                        decoration: pw.BoxDecoration(color: PdfColors.grey100),
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Total Income:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                            pw.Text('$curr ${_formatCurrency(_totalIncome)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColor.fromHex('#2e7d32'))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(width: 20),
+                // Expenditure Column
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+                        decoration: pw.BoxDecoration(color: PdfColor.fromHex('#d32f2f')),
+                        child: pw.Text('EXPENDITURE', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                      ),
+                      pw.Table(
+                        border: pw.TableBorder.all(color: PdfColors.grey300),
+                        children: [
+                          ..._expenseTransactions.map((t) {
+                            final type = t['type'] as String;
+                            final refType = t['reference_type'] as String?;
+                            final partyName = t['party_name'] as String?;
+                            final category = t['category'] as String?;
+                            String name = 'Transaction';
+                            if (refType == 'purchase') name = 'Purchase';
+                            else if (type == 'payment') name = 'Paid: ${partyName ?? 'Supplier'}';
+                            else if (category != null) name = category;
+
+                            return pw.TableRow(
+                              children: [
+                                pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(name, style: const pw.TextStyle(fontSize: 9))),
+                                pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text('$curr ${_formatCurrency(double.tryParse(t['amount'].toString()) ?? 0)}', style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.right)),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.all(8),
+                        decoration: pw.BoxDecoration(color: PdfColors.grey100),
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Total Expense:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                            pw.Text('$curr ${_formatCurrency(_totalExpense)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColor.fromHex('#d32f2f'))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            
+            pw.SizedBox(height: 30),
+
+            // Closing Balance
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(12),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#154834'),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Closing Balance', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                        pw.Text('$curr ${_formatCurrency(_closingBalance)}', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.Expanded(child: pw.SizedBox()), // Spacer
+              ],
+            ),
+
+            pw.Spacer(),
+            pw.Divider(color: PdfColors.grey300),
+            pw.Center(child: pw.Text('Powered by Papyrus', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500, fontStyle: pw.FontStyle.italic))),
+          ],
+        );
+      },
+    ));
+
+    return pdf.save();
+  }
+
+  void _printReport() async {
+    final pdfData = await _generatePdf();
+    await Printing.layoutPdf(onLayout: (_) async => pdfData, name: 'Daily_Report_${DateFormat('yyyyMMdd').format(_selectedDate)}');
+  }
+
+  void _saveAsPdf() async {
+    final pdfData = await _generatePdf();
+    await Printing.sharePdf(bytes: pdfData, filename: 'Daily_Report_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final primaryColor = const Color(0xFF154834);
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
       appBar: AppBar(
-        title: const Text('Daily Report', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Daily Cash Flow', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: const Color(0xFF154834),
+        foregroundColor: primaryColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print_rounded),
+            onPressed: _printReport,
+            tooltip: 'Print Report',
+          ),
+          IconButton(
+            icon: const Icon(Icons.save_alt_rounded),
+            onPressed: _saveAsPdf,
+            tooltip: 'Download PDF',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -163,13 +394,18 @@ class _DailyReportScreenState extends State<DailyReportScreen> {
               : RefreshIndicator(
                   onRefresh: _fetchReportData,
                   child: ListView(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     children: [
-                      _buildSummarySection(),
-                      const SizedBox(height: 24),
-                      _buildDetailedBreakdown(),
-                      const SizedBox(height: 24),
-                      _buildFinalBalanceCard(),
+                      _buildBalanceCard('Opening Balance', _openingBalance, Colors.grey[700]!, LucideIcons.unlock),
+                      const SizedBox(height: 20),
+                      
+                      _buildTransactionSection('Income', _incomeTransactions, Colors.green, LucideIcons.arrowDownLeft, _totalIncome),
+                      const SizedBox(height: 20),
+                      
+                      _buildTransactionSection('Expenditure', _expenseTransactions, Colors.red, LucideIcons.arrowUpRight, _totalExpense),
+                      const SizedBox(height: 20),
+                      
+                      _buildBalanceCard('Closing Balance', _closingBalance, primaryColor, LucideIcons.lock, isClosing: true),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -214,177 +450,144 @@ class _DailyReportScreenState extends State<DailyReportScreen> {
     );
   }
 
-  Widget _buildSummarySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Business Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1B2C24))),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 1.5,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          children: [
-            _buildReportCard('Total Sales', '৳${_formatCurrency(_totalSales)}', Colors.blue, LucideIcons.trendingUp, subtitle: '$_salesCount Sales'),
-            _buildReportCard('Total Purchases', '৳${_formatCurrency(_totalPurchases)}', Colors.amber, LucideIcons.shoppingCart),
-            _buildReportCard('Income (Ay-Bay)', '৳${_formatCurrency(_totalIncome)}', Colors.teal, LucideIcons.arrowUpRight),
-            _buildReportCard('Expense (Ay-Bay)', '৳${_formatCurrency(_totalExpense)}', Colors.red, LucideIcons.arrowDownLeft),
-            _buildReportCard('Received (Len-Den)', '৳${_formatCurrency(_totalReceived)}', Colors.green, LucideIcons.plusCircle),
-            _buildReportCard('Payment (Len-Den)', '৳${_formatCurrency(_totalPayment)}', Colors.orange, LucideIcons.minusCircle),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReportCard(String title, String value, Color color, IconData icon, {String? subtitle}) {
+  Widget _buildBalanceCard(String title, double amount, Color color, IconData icon, {bool isClosing = false}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isClosing ? color : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
-        border: Border.all(color: color.withOpacity(0.1)),
+        border: Border.all(color: isClosing ? color : color.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(isClosing ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, size: 14, color: color),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (isClosing ? Colors.white : color).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: isClosing ? Colors.white : color, size: 20),
               ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isClosing ? Colors.white : Colors.grey[800],
+                ),
+              ),
             ],
           ),
-          const Spacer(),
-          FittedBox(child: Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color))),
-          if (subtitle != null) Text(subtitle, style: TextStyle(fontSize: 10, color: color.withOpacity(0.7))),
+          Text(
+            '৳${_formatCurrency(amount)}',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isClosing ? Colors.white : color,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailedBreakdown() {
-    if (_transactions.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
+  Widget _buildTransactionSection(String title, List<Map<String, dynamic>> txs, Color color, IconData icon, double total) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Daily Transactions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1B2C24))),
-        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: color),
+                  const SizedBox(width: 8),
+                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Total: ৳${_formatCurrency(total)}',
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey.withOpacity(0.1)),
           ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _transactions.length,
-            separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.withOpacity(0.1)),
-            itemBuilder: (context, index) {
-              final t = _transactions[index];
-              final type = t['type'] as String;
-              final isPositive = ['income', 'received', 'sale'].contains(type);
-              
-              return ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: (isPositive ? Colors.green : Colors.red).withOpacity(0.1),
-                    shape: BoxShape.circle,
+          child: txs.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: Text(
+                      'No ${title.toLowerCase()} recorded',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ),
-                  child: Icon(
-                    isPositive ? LucideIcons.plus : LucideIcons.minus,
-                    size: 16,
-                    color: isPositive ? Colors.green : Colors.red,
-                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: txs.length,
+                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.withOpacity(0.1)),
+                  itemBuilder: (context, index) {
+                    final t = txs[index];
+                    final type = t['type'] as String;
+                    final refType = t['reference_type'] as String?;
+                    final partyName = t['party_name'] as String?;
+                    final category = t['category'] as String?;
+
+                    String source = 'Transaction';
+
+                    if (refType == 'sale') {
+                      source = 'Sale';
+                    } else if (refType == 'purchase') {
+                      source = 'Purchase';
+                    } else if (type == 'received') {
+                      source = 'Received from ${partyName ?? 'Customer'}';
+                    } else if (type == 'payment') {
+                      source = 'Paid to ${partyName ?? 'Supplier'}';
+                    } else if (category != null) {
+                      source = category;
+                    }
+
+                    return ListTile(
+                      dense: true,
+                      title: Text(source, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(t['note'] ?? 'No notes', style: const TextStyle(fontSize: 11)),
+                      trailing: Text(
+                        '৳${_formatCurrency(double.tryParse(t['amount'].toString()) ?? 0)}',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14),
+                      ),
+                    );
+                  },
                 ),
-                title: Text(t['category'] ?? t['type'].toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                subtitle: Text(t['note'] ?? 'No note', style: TextStyle(fontSize: 12, color: Colors.grey[600]), maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Text(
-                  '${isPositive ? '+' : '-'}৳${_formatCurrency((double.tryParse(t['amount'].toString()) ?? 0))}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isPositive ? Colors.green : Colors.red,
-                  ),
-                ),
-              );
-            },
-          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFinalBalanceCard() {
-    final netToday = _netToday;
-    final isNetPositive = netToday >= 0;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF154834), Color(0xFF2E6B4F)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF154834).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Final Cash Balance of the Day',
-            style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '৳${_formatCurrency(_finalWalletBalance)}',
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isNetPositive ? LucideIcons.trendingUp : LucideIcons.trendingDown,
-                  size: 14,
-                  color: isNetPositive ? Colors.greenAccent : Colors.redAccent,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Today's Net: ${isNetPositive ? '+' : ''}৳${_formatCurrency(netToday)}",
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

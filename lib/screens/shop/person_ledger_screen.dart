@@ -229,8 +229,13 @@ class _PersonLedgerScreenState extends State<PersonLedgerScreen> {
                 selectedWallet = _wallets.firstWhere((w) => w['id'] == selectedWalletId);
               } catch (_) {}
             } else if (_wallets.isNotEmpty) {
-              selectedWallet = _wallets[0];
-              selectedWalletId = selectedWallet!['id'] as String?;
+              final defaultFound = _wallets.where((w) => w['is_default'] == true || w['is_default'].toString() == 'true');
+              if (defaultFound.isNotEmpty) {
+                selectedWallet = defaultFound.first as Map<String, dynamic>;
+              } else {
+                selectedWallet = _wallets[0] as Map<String, dynamic>;
+              }
+              selectedWalletId = selectedWallet['id'] as String?;
             }
             
             final walletBalance = selectedWallet != null ? (double.tryParse(selectedWallet['balance'].toString()) ?? 0) : 0.0;
@@ -334,6 +339,7 @@ class _PersonLedgerScreenState extends State<PersonLedgerScreen> {
                                 'type': transactionType == 'payment' ? 'expense' : 'income',
                                 'amount': amount,
                                 'category': transactionType == 'payment' ? 'Payment' : 'Received',
+                                'party_name': widget.personName,
                                 'note': '${transactionType == 'payment' ? 'To' : 'From'} ${widget.personName}: $notes',
                                 'reference_id': res['id'],
                                 'reference_type': 'manual',

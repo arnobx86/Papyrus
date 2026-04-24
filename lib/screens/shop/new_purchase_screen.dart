@@ -181,7 +181,11 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           _suppliers = results[0] as List;
           _products = results[1] as List;
           _wallets = results[2] as List;
-          if (_wallets.isNotEmpty) _selectedWalletId = _wallets[0]['id'];
+          if (_wallets.isNotEmpty) {
+            final defaultFound = _wallets.where((w) => w['is_default'] == true || w['is_default'].toString() == 'true');
+            final defaultWallet = defaultFound.isNotEmpty ? defaultFound.first : _wallets[0];
+            _selectedWalletId = defaultWallet['id'];
+          }
           
           // Generate next invoice number for purchases using settings if available
           final latestPurchases = results[3] as List;
@@ -403,10 +407,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           'type': 'expense',
           'amount': _paidAmount,
           'category': 'Purchase',
+          'party_name': _supplierName,
           'note': 'Purchase Payment for Invoice ${_invoiceController.text}',
           'reference_id': purchase['id'],
           'reference_type': 'purchase',
           'created_at': _dateController.text,
+          'transaction_date': _dateController.text,
         });
       }
 
